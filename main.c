@@ -48,6 +48,16 @@
 #define MOV     0x000F
 
 
+#define SET_N_MASK 0x1
+#define SET_Z_MASK 0x2
+#define SET_V_MASK 0x4
+#define SET_C_MASK 0x8
+
+#define set_n_bit(x) (uint8_t) (x | SET_N_MARK)
+#define set_z_bit(x) (uint8_t) (x | SET_Z_MARK)
+#define set_v_bit(x) (uint8_t) (x | SET_V_MARK)
+#define set_c_bit(x) (uint8_t) (x | SET_C_MARK)
+
 #define operation(x) (uint16_t) ((x & OP_MASK) >> 12)
 
 
@@ -204,6 +214,7 @@ main(int argc, char *argv[])
   
   // R1 R2, R3, R4, PC
   uint16_t registers[5] = {0x0, 0x0, 0x0, 0x0, 0x0};
+  uint8_t  flags        = 0x0;
   
 
   int stop = 4;
@@ -396,10 +407,71 @@ main(int argc, char *argv[])
                   break;
                 }
               }
+
+            // Set the bits.
+            
             stop -= 1;
 
             break;            
-          }          
+          }
+
+          // CMP src dst
+        case 0x3:
+          {
+            const uint16_t srcm = src_mode(word);
+            const uint16_t srcr = src_register(word);
+            const uint16_t dstm = dst_mode(word);
+            const uint16_t dstr = dst_register(word);
+
+            uint16_t src_value = 0x0;
+            uint16_t dst_value = 0x0;
+
+            // Read out the value to add to the destination.
+            switch(srcm)
+              {
+              case IMMED:
+                {
+                  src_value = registers[srcr - 1];
+                  break;
+                }
+              case MODE1:
+                {
+                  src_value = memory[registers[srcr - 1]];
+                  break;
+                }
+              case MODE2:
+                {
+                  src_value = memory[registers[srcr - 1]];
+                  registers[srcr - 1] = registers[srcr - 1] + 1;
+                  break;
+                }
+              }
+
+            switch(dstm)
+              {
+              case IMMED:
+                {
+                  dst_value = registers[dstr - 1];
+                  break;
+                }
+              case MODE1:
+                {
+                  dst_value = memory[registers[dstr - 1]];
+                  break;
+                }
+              case MODE2:
+                {
+                  dst_value = memory[registers[dstr - 1]];
+                  registers[dstr - 1] = registers[dstr - 1] + 1;
+                  break;
+                }
+              }            
+            
+            stop -= 1;
+
+            break;            
+          }
+          
         default:
           {
         
