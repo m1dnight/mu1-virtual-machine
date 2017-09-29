@@ -44,7 +44,7 @@
 #define R4_DST 0x0004
 #define PC_DST 0x0005
 
-#define OP_MASK 0x0F00
+#define OP_MASK 0xF000
 #define MOV     0x000F
 
 
@@ -154,6 +154,8 @@ int
 main(int argc, char *argv[])
 {
  
+  
+  
   /**********/
   /* SETUP  */
   /**********/
@@ -206,21 +208,26 @@ main(int argc, char *argv[])
   memory[8] = 0x000F;
   
 
-  int stop = 3;
+  int stop = 4;
   
   while(stop > 0)
     {
       printf("--------------------------------------\n");
       const uint16_t word = memory[registers[4]];
       printf("Current word: %" PRIu16 "\n", word);
+      
       const uint16_t oper = operation(word);
       printf(" - operation: %" PRIu16 "\n", oper);
+      
       const uint16_t srcm = src_mode(word);
       printf(" - src_mode : %" PRIu16 "\n", srcm);
+      
       const uint16_t srcr = src_register(word);
-      printf(" - src_reg  : %" PRIu16 "\n", srcr);  
+      printf(" - src_reg  : %" PRIu16 "\n", srcr);
+      
       const uint16_t dstm = dst_mode(word);
       printf(" - dst_mode : %" PRIu16 "\n", dstm);
+      
       const uint16_t dstr = dst_register(word);
       printf(" - dst_reg  : %" PRIu16 "\n", dstr);
 
@@ -283,6 +290,64 @@ main(int argc, char *argv[])
             stop -= 1;
 
             break;
+          }
+
+          // ADD src dst
+        case 0x1:
+          {
+            const uint16_t srcm = src_mode(word);
+            const uint16_t srcr = src_register(word);
+            const uint16_t dstm = dst_mode(word);
+            const uint16_t dstr = dst_register(word);
+
+            uint16_t src_value = 0x0;
+
+            // Read out the value to add to the destination.
+            switch(srcm)
+              {
+              case IMMED:
+                {
+                  src_value = registers[srcr - 1];
+                  break;
+                }
+              case MODE1:
+                {
+                  src_value = memory[registers[srcr - 1]];
+                  break;
+                }
+              case MODE2:
+                {
+                  src_value = memory[registers[srcr - 1]];
+                  registers[srcr - 1] = registers[srcr - 1] + 1;
+                  break;
+                }
+              }
+            printf("Source value: %" PRIu16 "\n", src_value);
+            printf("Destination value: %" PRIu16 "\n", registers[dstr-1]);            
+            // Determine the address to move to.
+            switch(dstm)
+              {
+              case IMMED:
+                {
+                  printf("Destination value: %" PRIu16 "\n", registers[dstr-1]);
+                  registers[dstr - 1] = registers[dstr-1] + src_value;
+                  break;
+                }
+              case MODE1:
+                {
+                  memory[registers[dstr - 1]] = memory[registers[dstr - 1]] + src_value;
+                  break;
+                }
+              case MODE2:
+                {
+                  memory[registers[dstr - 1]] = memory[registers[dstr - 1]] + src_value;
+                  registers[dstr - 1] = registers[dstr - 1] + 1;
+                  break;
+                }
+              }
+            stop -= 1;
+
+            break;            
           }
         default:
           {
