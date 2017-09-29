@@ -217,9 +217,9 @@ main(int argc, char *argv[])
   uint8_t  flags        = 0x0;
   
 
-  int stop = 4;
+  int stop = 0;
   
-  while(stop > 0)
+  while(stop != 1)
     {
       printf("--------------------------------------\n");
       const uint16_t word = memory[registers[4]];
@@ -471,7 +471,13 @@ main(int argc, char *argv[])
 
             break;            
           }
-          
+
+          // HALT
+        case 0x5:
+          {
+            stop = 1;
+            break;            
+          }          
         default:
           {
         
