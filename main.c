@@ -91,12 +91,12 @@ printMemory(uint16_t *memory)
   // PRint out the memory.
   for(int i = 0; i < MEMSIZE / 8; i++)
     {
-      printf("% 3d - % 3d: ", i, i + 8);
+      printf("%3d - %3d: ", i * 8, i*8 + 7);
       for(int j = 0; j < 8; j++)
         {
-          printf("%016" PRIu16 " ", memory[(i * 8) + j]);
+          printf("|%16" PRIu16 " ", memory[(i * 8) + j]);
         }
-      printf("\n");
+      printf("|\n");
     }
 }
 
@@ -205,8 +205,6 @@ main(int argc, char *argv[])
   // R1 R2, R3, R4, PC
   uint16_t registers[5] = {0x0, 0x0, 0x0, 0x0, 0x0};
   
-  memory[8] = 0x000F;
-  
 
   int stop = 4;
   
@@ -266,7 +264,6 @@ main(int argc, char *argv[])
                   break;
                 }
               }
-            printf("Source value: %" PRIu16 "\n", src_value);
             // Determine the address to move to.
             switch(dstm)
               {
@@ -322,14 +319,11 @@ main(int argc, char *argv[])
                   break;
                 }
               }
-            printf("Source value: %" PRIu16 "\n", src_value);
-            printf("Destination value: %" PRIu16 "\n", registers[dstr-1]);            
             // Determine the address to move to.
             switch(dstm)
               {
               case IMMED:
                 {
-                  printf("Destination value: %" PRIu16 "\n", registers[dstr-1]);
                   registers[dstr - 1] = registers[dstr-1] + src_value;
                   break;
                 }
@@ -349,6 +343,63 @@ main(int argc, char *argv[])
 
             break;            
           }
+
+          // SUB src dst
+        case 0x2:
+          {
+            const uint16_t srcm = src_mode(word);
+            const uint16_t srcr = src_register(word);
+            const uint16_t dstm = dst_mode(word);
+            const uint16_t dstr = dst_register(word);
+
+            uint16_t src_value = 0x0;
+
+            // Read out the value to add to the destination.
+            switch(srcm)
+              {
+              case IMMED:
+                {
+                  src_value = registers[srcr - 1];
+                  break;
+                }
+              case MODE1:
+                {
+                  src_value = memory[registers[srcr - 1]];
+                  break;
+                }
+              case MODE2:
+                {
+                  src_value = memory[registers[srcr - 1]];
+                  registers[srcr - 1] = registers[srcr - 1] + 1;
+                  break;
+                }
+              }
+
+            // Determine the address to move to.
+            switch(dstm)
+              {
+              case IMMED:
+                {
+                  printf("Destination value: %" PRIu16 "\n", registers[dstr-1]);
+                  registers[dstr - 1] = registers[dstr-1] - src_value;
+                  break;
+                }
+              case MODE1:
+                {
+                  memory[registers[dstr - 1]] = memory[registers[dstr - 1]] - src_value;
+                  break;
+                }
+              case MODE2:
+                {
+                  memory[registers[dstr - 1]] = memory[registers[dstr - 1]] - src_value;
+                  registers[dstr - 1] = registers[dstr - 1] + 1;
+                  break;
+                }
+              }
+            stop -= 1;
+
+            break;            
+          }          
         default:
           {
         
