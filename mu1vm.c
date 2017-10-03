@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+
 #include "conditionals.h"
 #include "registers.h"
 #include "memory.h"
@@ -81,16 +82,14 @@ main(int argc, char *argv[])
 
       switch(oper)
         {
-          // MOV
-        case 0x0:
+        case MOV:
           {
             uint16_t src_value = readSourceValue2Op(memory, registers, word);
             writeDestinationValue2Op(memory, registers, word, src_value);
             break;
           }
 
-          // ADD src dst
-        case 0x1:
+        case ADD:
           {
             uint16_t src_value = readSourceValue2Op(memory, registers, word);
             uint16_t dst_value = readDestinationValue2Op(memory, registers, word);
@@ -98,8 +97,7 @@ main(int argc, char *argv[])
             break;
           }
 
-          // SUB src dst
-        case 0x2:
+        case SUB:
           {
             uint16_t src_value = readSourceValue2Op(memory, registers, word);
             uint16_t dst_value = readDestinationValue2Op(memory, registers, word);
@@ -107,8 +105,7 @@ main(int argc, char *argv[])
             break;
           }
 
-          // CMP src dst
-        case 0x3:
+        case CMP:
           {
             uint16_t dst_value = readDestinationValue2Op(memory, registers, word);
             uint16_t src_value = readSourceValue2Op(memory, registers, word);
@@ -120,12 +117,10 @@ main(int argc, char *argv[])
             break;
           }
 
-          // BEQ offset
-          // Note: The offset is an 8 bit 2c number!!
-        case 0x4:
+        case BEQ:
         {
           // Op contains the offset in 2C but in 16 bits.
-          int8_t   offset = ((int8_t) single_op(word)) / 2 - 1; // -1 for the PC pointing to the next line already.
+          int8_t   offset = ((int8_t) single_op_operand(word)) / 2 - 1; // -1 for the PC pointing to the next line already.
           uint16_t target = registers[4] + offset;
 
           if(get_c_bit(flags) == 1)
@@ -135,19 +130,16 @@ main(int argc, char *argv[])
           break;
         }
 
-          // HALT
-        case 0x5:
+        case HALT:
           {
             stop = 1;
             break;
           }
 
-          // BNE offset
-          // Note: The offset is an 8 bit 2c number!!
-        case 0x6:
+        case BNE:
           {
             // Op contains the offset in 2C but in 16 bits.
-            int8_t   offset = ((int8_t) single_op(word)) / 2 - 1; // -1 for the PC pointing to the next line already.
+            int8_t   offset = ((int8_t) single_op_operand(word)) / 2 - 1; // -1 for the PC pointing to the next line already.
             uint16_t target = registers[4] + offset;
 
             if(get_c_bit(flags) != 1)
