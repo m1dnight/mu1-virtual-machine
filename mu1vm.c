@@ -57,6 +57,33 @@ readSourceValue2Op(uint16_t *memory, uint16_t *registers, uint16_t word)
   return src_value;
 }
 
+void
+writeDestinationValue2Op(uint16_t *memory, uint16_t *registers, uint16_t word, uint16_t val)
+{
+  const uint16_t dstm = dst_mode(word);
+  const uint16_t dstr = dst_register(word);
+
+  // Determine the address to move to.
+  switch(dstm)
+    {
+    case IMMED:
+      {
+        registers[dstr - 1] = src_value;
+        break;
+      }
+    case MODE1:
+      {
+        memory[registers[dstr - 1]] = src_value;
+        break;
+      }
+    case MODE2:
+      {
+        memory[registers[dstr - 1]] = src_value;
+        registers[dstr - 1] = registers[dstr - 1] + 1;
+        break;
+      }
+    }
+}
 
 int
 main(int argc, char *argv[])
@@ -134,27 +161,7 @@ main(int argc, char *argv[])
             const uint16_t dstr = dst_register(word);
 
             uint16_t src_value = readSourceValue2Op(memory, registers, word);
-
-            // Determine the address to move to.
-            switch(dstm)
-              {
-              case IMMED:
-                {
-                  registers[dstr - 1] = src_value;
-                  break;
-                }
-              case MODE1:
-                {
-                  memory[registers[dstr - 1]] = src_value;
-                  break;
-                }
-              case MODE2:
-                {
-                  memory[registers[dstr - 1]] = src_value;
-                  registers[dstr - 1] = registers[dstr - 1] + 1;
-                  break;
-                }
-              }
+            writeDestinationValue2Op(memory, registers, word, src_value);
             break;
           }
 
