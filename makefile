@@ -1,13 +1,15 @@
-FLAGS=-Wall
+FLAGS=-Wall -I .
+CC=gcc
+DEPS=debug.h endianness.h
+OBJ=debug.o endianness.o
 
-default: main
+%.o: %.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
 
-main.o: main.c 
-	gcc $(FLAGS) -c main.c -o main.o
+mu1vm: $(OBJ)
 
-main: main.o
-	gcc $(FLAGS) main.o -o main
+.PHONY: clean
 
 clean:
-	-rm -f main.o
-	-rm -f main
+	-rm -f *.o
+	-rm -f mu1vm

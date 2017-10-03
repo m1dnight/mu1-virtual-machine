@@ -2,43 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
-
-#define MEMSIZE 128 // 256 words of memory (16 * 256 bits)
-
-
-#define MODE_SRC   0x0E00
-#define MODE_DST   0x0038
-
-#define IMMED      0x0
-#define MODE1      0x1
-#define MODE2      0x2
-
-#define R_SRC      0x01C0
-#define R_DST      0x0007
-
-#define SINGLE_OP  0x0FFF
-
-#define OP_MASK    0xF000
-
-#define SET_N_MASK 0x01
-#define SET_Z_MASK 0x02
-#define SET_V_MASK 0x04
-#define SET_C_MASK 0x08
-
-#define set_n_bit(x)    (uint8_t) (x | SET_N_MASK)
-#define set_z_bit(x)    (uint8_t) (x | SET_Z_MASK)
-#define set_v_bit(x)    (uint8_t) (x | SET_V_MASK)
-#define set_c_bit(x)    (uint8_t) (x | SET_C_MASK)
-
-#define get_c_bit(x)    (uint8_t) (x & SET_C_MASK) >> 3
-
-#define operation(x)    (uint16_t) ((x & OP_MASK) >> 12)
-#define src_register(x) (uint16_t) ((x & R_SRC) >> 6)
-#define dst_register(x) (uint16_t) ((x & R_DST))
-#define src_mode(x)     (uint16_t) ((x & MODE_SRC) >> 9)
-#define dst_mode(x)     (uint16_t) ((x & MODE_DST) >> 3)
-#define single_op(x)    (uint16_t) ((x & SINGLE_OP))
-#define get_word(x)     memory[x / 2];
+#include "debug.h"
+#include "endianness.h"
+#include "defines.c"
 
 
 /*
@@ -52,72 +18,6 @@ file_size(FILE * f)
   rewind(f);
   return sz;
 }
-
-/*
-  Converts a uint16_t to big endian.
-*/
-uint16_t
-toBE(uint16_t v)
-{
-  return (v << 8) | (v >> 8);
-}
-
-/*
-  Converts a uint16_t to little endian.
-*/
-uint16_t
-toLE(uint16_t v)
-{
-  return (v << 8) | (v >> 8);
-}
-
-/*
-  Dumps the memory in a human readable way on stdout.
-*/
-void
-printMemory(uint16_t *memory)
-{
-  printf("MEMDUMP:\n");
-  // PRint out the memory.
-  for(int i = 0; i < MEMSIZE / 8; i++)
-    {
-      printf("%3d - %3d: ", i * 8, i*8 + 7);
-      for(int j = 0; j < 8; j++)
-        {
-          printf("|%16" PRIu16 " ", memory[(i * 8) + j]);
-        }
-      printf("|\n");
-    }
-}
-
-/*
-  Prints out the register values.
-*/
-void
-printRegisters(uint16_t *registers)
-{
-  printf("REGISTERS:\n");
-  printf("R1: %016" PRIu16 "\n", registers[0]);
-  printf("R2: %016" PRIu16 "\n", registers[1]);
-  printf("R3: %016" PRIu16 "\n", registers[2]);
-  printf("R4: %016" PRIu16 "\n", registers[3]);
-  printf("PC: %016" PRIu16 "\n", registers[4]);
-}
-
-/*
-Prints the condition bits.
-*/
-void
-printConditions(uint8_t flags)
-{
-  printf("CONDITIONS:\n");
-  printf("N: %" PRIu8 "\n", (uint8_t) (flags & SET_N_MASK));
-  printf("Z: %" PRIu8 "\n", (uint8_t) (flags & SET_Z_MASK));
-  printf("V: %" PRIu8 "\n", (uint8_t) (flags & SET_V_MASK));
-  printf("C: %" PRIu8 "\n", (uint8_t) (flags & SET_C_MASK));
-
-}
-
 
 int
 main(int argc, char *argv[])
