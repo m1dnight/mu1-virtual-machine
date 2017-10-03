@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <inttypes.h>
-#include "defines.c"
+#include "defines.h"
 /*
   Dumps the memory in a human readable way on stdout.
 */

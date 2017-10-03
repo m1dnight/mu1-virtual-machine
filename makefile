@@ -1,12 +1,18 @@
-FLAGS=-Wall -I .
+# compiler flags:
+#  -g    adds debugging information to the executable file
+#  -Wall turns on most, but not all, compiler warnings
+FLAGS=-Wall -g
 CC=gcc
-DEPS=debug.h endianness.h
-OBJ=debug.o endianness.o
 
-%.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+# Typing `make` in the console will execute the `all` rule.
+default: mu1vm
 
-mu1vm: $(OBJ)
+.c.o:
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+mu1vm: mu1vm.o debug.o  endianness.o memory.o
+	$(CC) $(FLAGS) -o mu1vm mu1vm.o debug.o endianness.o memory.o
+
 
 .PHONY: clean
 

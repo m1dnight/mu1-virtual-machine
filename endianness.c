@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <inttypes.h>
-#include "defines.c"
+#include "defines.h"
 /*
   Converts a uint16_t to big endian.
 */

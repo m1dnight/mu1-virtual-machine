@@ -4,7 +4,8 @@
 #include <inttypes.h>
 #include "debug.h"
 #include "endianness.h"
-#include "defines.c"
+#include "defines.h"
+#include "memory.h"
 
 
 /*
@@ -17,97 +18,6 @@ file_size(FILE * f)
   int		sz = ftell(f);
   rewind(f);
   return sz;
-}
-
-/*
-Expects a two-operand instruction word.
-Reads out the source value of that word according to addressing mode and register.
-*/
-uint16_t
-readSourceValue2Op(uint16_t *memory, uint16_t *registers, uint16_t word)
-{
-  uint16_t srcm = src_mode(word);
-  uint16_t srcr = src_register(word);
-
-  uint16_t src_value = 0x0;
-
-  switch(srcm)
-    {
-    case IMMED:
-      {
-        src_value = registers[srcr - 1];
-        break;
-      }
-    case MODE1:
-      {
-        src_value = memory[registers[srcr - 1]];
-        break;
-      }
-    case MODE2:
-      {
-        // Mode 2 means autoincrement. The VM uses the value of the
-        // register that was given as an address and uses that value.
-        // The value of the register however, is incremented
-        // afterwards!
-        src_value = memory[registers[srcr - 1]];
-        registers[srcr - 1] = registers[srcr - 1] + 1;
-        break;
-      }
-    }
-  return src_value;
-}
-
-uint16_t
-readDestinationValue2Op(uint16_t *memory, uint16_t *registers, uint16_t word)
-{
-  const uint16_t dstm = dst_mode(word);
-  const uint16_t dstr = dst_register(word);
-
-  switch(dstm)
-    {
-    case IMMED:
-      {
-        return registers[dstr - 1];
-        break;
-      }
-    case MODE1:
-      {
-        return memory[registers[dstr - 1]];
-        break;
-      }
-    case MODE2:
-      {
-        return memory[registers[dstr - 1]];
-        registers[dstr - 1] = registers[dstr - 1] + 1;
-        break;
-      }
-    }
-}
-
-
-void
-writeDestinationValue2Op(uint16_t *memory, uint16_t *registers, uint16_t word, uint16_t new_value)
-{
-  const uint16_t dstm = dst_mode(word);
-  const uint16_t dstr = dst_register(word);
-  switch(dstm)
-    {
-    case IMMED:
-      {
-        registers[dstr - 1] = new_value;
-        break;
-      }
-    case MODE1:
-      {
-        memory[registers[dstr - 1]] = new_value;
-        break;
-      }
-    case MODE2:
-      {
-        memory[registers[dstr - 1]] = new_value;
-        break;
-      }
-    }
 }
 
 int
@@ -135,11 +45,7 @@ main(int argc, char *argv[])
   for(int i = 0; i < size; i++)
       buffer[i] = toLE(buffer[i]);
 
-  // We generate a sufficiently large enough chunk of memory.
-  // A single word in the VM is 16 bits, so one word can be stored in a uint16_t.
-  uint16_t  *memory = malloc(sizeof(uint16_t) * MEMSIZE);
-  for (int i = 0; i < MEMSIZE; i++)
-    memory[i] = 0;
+  uint16_t *memory = initMemory();
 
   // Finally we copy the program into memory. The program starts at the from of
   // the chunk of memory.
@@ -164,10 +70,6 @@ main(int argc, char *argv[])
     {
       const uint16_t word = memory[registers[4]];
       const uint16_t oper = operation(word);
-      const uint16_t srcm = src_mode(word);
-      const uint16_t srcr = src_register(word);
-      const uint16_t dstm = dst_mode(word);
-      const uint16_t dstr = dst_register(word);
 
       // Increment program counter. In the theoretical model the PC goes forward
       // in steps of 2. We have one word per line, so we increment by 1. The
@@ -215,6 +117,7 @@ main(int argc, char *argv[])
               }
             break;
           }
+
           // BEQ offset
           // Note: The offset is an 8 bit 2c number!!
         case 0x4:
@@ -229,12 +132,14 @@ main(int argc, char *argv[])
           }
           break;
         }
+
           // HALT
         case 0x5:
           {
             stop = 1;
             break;
           }
+
           // BNE offset
           // Note: The offset is an 8 bit 2c number!!
         case 0x6:
