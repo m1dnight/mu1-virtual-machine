@@ -4,10 +4,10 @@
 #include <inttypes.h>
 #include "conditionals.h"
 #include "registers.h"
-#include "debug.h"
-#include "endianness.h"
-#include "defines.h"
 #include "memory.h"
+#include "word.h"
+#include "endianness.h"
+
 
 
 /*
