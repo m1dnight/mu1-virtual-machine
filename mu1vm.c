@@ -57,29 +57,54 @@ readSourceValue2Op(uint16_t *memory, uint16_t *registers, uint16_t word)
   return src_value;
 }
 
-void
-writeDestinationValue2Op(uint16_t *memory, uint16_t *registers, uint16_t word, uint16_t val)
+uint16_t
+readDestinationValue2Op(uint16_t *memory, uint16_t *registers, uint16_t word)
 {
   const uint16_t dstm = dst_mode(word);
   const uint16_t dstr = dst_register(word);
 
-  // Determine the address to move to.
   switch(dstm)
     {
     case IMMED:
       {
-        registers[dstr - 1] = src_value;
+        return registers[dstr - 1];
         break;
       }
     case MODE1:
       {
-        memory[registers[dstr - 1]] = src_value;
+        return memory[registers[dstr - 1]];
         break;
       }
     case MODE2:
       {
-        memory[registers[dstr - 1]] = src_value;
+        return memory[registers[dstr - 1]];
         registers[dstr - 1] = registers[dstr - 1] + 1;
+        break;
+      }
+    }
+}
+
+
+void
+writeDestinationValue2Op(uint16_t *memory, uint16_t *registers, uint16_t word, uint16_t new_value)
+{
+  const uint16_t dstm = dst_mode(word);
+  const uint16_t dstr = dst_register(word);
+  switch(dstm)
+    {
+    case IMMED:
+      {
+        registers[dstr - 1] = new_value;
+        break;
+      }
+    case MODE1:
+      {
+        memory[registers[dstr - 1]] = new_value;
+        break;
+      }
+    case MODE2:
+      {
+        memory[registers[dstr - 1]] = new_value;
         break;
       }
     }
@@ -155,11 +180,6 @@ main(int argc, char *argv[])
           // MOV
         case 0x0:
           {
-            const uint16_t srcm = src_mode(word);
-            const uint16_t srcr = src_register(word);
-            const uint16_t dstm = dst_mode(word);
-            const uint16_t dstr = dst_register(word);
-
             uint16_t src_value = readSourceValue2Op(memory, registers, word);
             writeDestinationValue2Op(memory, registers, word, src_value);
             break;
@@ -168,103 +188,28 @@ main(int argc, char *argv[])
           // ADD src dst
         case 0x1:
           {
-            const uint16_t srcm = src_mode(word);
-            const uint16_t srcr = src_register(word);
-            const uint16_t dstm = dst_mode(word);
-            const uint16_t dstr = dst_register(word);
-
             uint16_t src_value = readSourceValue2Op(memory, registers, word);
-
-            // Determine the address to move to.
-            switch(dstm)
-              {
-              case IMMED:
-                {
-                  registers[dstr - 1] = registers[dstr-1] + src_value;
-                  break;
-                }
-              case MODE1:
-                {
-                  memory[registers[dstr - 1]] = memory[registers[dstr - 1]] + src_value;
-                  break;
-                }
-              case MODE2:
-                {
-                  memory[registers[dstr - 1]] = memory[registers[dstr - 1]] + src_value;
-                  registers[dstr - 1] = registers[dstr - 1] + 1;
-                  break;
-                }
-              }
+            uint16_t dst_value = readDestinationValue2Op(memory, registers, word);
+            writeDestinationValue2Op(memory, registers, word, src_value + dst_value);
             break;
           }
 
           // SUB src dst
         case 0x2:
           {
-            const uint16_t srcm = src_mode(word);
-            const uint16_t srcr = src_register(word);
-            const uint16_t dstm = dst_mode(word);
-            const uint16_t dstr = dst_register(word);
-
             uint16_t src_value = readSourceValue2Op(memory, registers, word);
-
-            // Determine the address to move to.
-            switch(dstm)
-              {
-              case IMMED:
-                {
-                  registers[dstr - 1] = registers[dstr-1] - src_value;
-                  break;
-                }
-              case MODE1:
-                {
-                  memory[registers[dstr - 1]] = memory[registers[dstr - 1]] - src_value;
-                  break;
-                }
-              case MODE2:
-                {
-                  memory[registers[dstr - 1]] = memory[registers[dstr - 1]] - src_value;
-                  registers[dstr - 1] = registers[dstr - 1] + 1;
-                  break;
-                }
-              }
-
+            uint16_t dst_value = readDestinationValue2Op(memory, registers, word);
+            writeDestinationValue2Op(memory, registers, word, dst_value - src_value);
             break;
           }
 
           // CMP src dst
         case 0x3:
           {
-            const uint16_t srcm = src_mode(word);
-            const uint16_t srcr = src_register(word);
-            const uint16_t dstm = dst_mode(word);
-            const uint16_t dstr = dst_register(word);
-
-            uint16_t dst_value = 0x0;
+            uint16_t dst_value = readDestinationValue2Op(memory, registers, word);
             uint16_t src_value = readSourceValue2Op(memory, registers, word);
 
-            switch(dstm)
-              {
-              case IMMED:
-                {
-                  dst_value = registers[dstr - 1];
-                  break;
-                }
-              case MODE1:
-                {
-                  dst_value = memory[registers[dstr - 1]];
-                  break;
-                }
-              case MODE2:
-                {
-                  dst_value = memory[registers[dstr - 1]];
-                  registers[dstr - 1] = registers[dstr - 1] + 1;
-                  break;
-                }
-              }
-
-            uint16_t diff = src_value - dst_value;
-            if(diff == 0)
+            if(src_value - dst_value == 0)
               {
                 flags = set_c_bit(flags);
               }
@@ -275,10 +220,7 @@ main(int argc, char *argv[])
         case 0x4:
         {
           // Op contains the offset in 2C but in 16 bits.
-          uint16_t op16 = single_op(word);
-          uint8_t  op8  = (uint8_t) op16;
-          int8_t   op8s = op8;
-          int8_t   offset = op8s / 2 - 1; // -1 for the PC pointing to the next line already.
+          int8_t   offset = ((int8_t) single_op(word)) / 2 - 1; // -1 for the PC pointing to the next line already.
           uint16_t target = registers[4] + offset;
 
           if(get_c_bit(flags) == 1)
@@ -298,10 +240,7 @@ main(int argc, char *argv[])
         case 0x6:
           {
             // Op contains the offset in 2C but in 16 bits.
-            uint16_t op16 = single_op(word);
-            uint8_t  op8  = (uint8_t) op16;
-            int8_t   op8s = op8;
-            int8_t   offset = op8s / 2 - 1; // -1 for the PC pointing to the next line already.
+            int8_t   offset = ((int8_t) single_op(word)) / 2 - 1; // -1 for the PC pointing to the next line already.
             uint16_t target = registers[4] + offset;
 
             if(get_c_bit(flags) != 1)
