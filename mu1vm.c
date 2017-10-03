@@ -19,6 +19,45 @@ file_size(FILE * f)
   return sz;
 }
 
+/*
+Expects a two-operand instruction word.
+Reads out the source value of that word according to addressing mode and register.
+*/
+uint16_t
+readSourceValue2Op(uint16_t *memory, uint16_t *registers, uint16_t word)
+{
+  uint16_t srcm = src_mode(word);
+  uint16_t srcr = src_register(word);
+
+  uint16_t src_value = 0x0;
+
+  switch(srcm)
+    {
+    case IMMED:
+      {
+        src_value = registers[srcr - 1];
+        break;
+      }
+    case MODE1:
+      {
+        src_value = memory[registers[srcr - 1]];
+        break;
+      }
+    case MODE2:
+      {
+        // Mode 2 means autoincrement. The VM uses the value of the
+        // register that was given as an address and uses that value.
+        // The value of the register however, is incremented
+        // afterwards!
+        src_value = memory[registers[srcr - 1]];
+        registers[srcr - 1] = registers[srcr - 1] + 1;
+        break;
+      }
+    }
+  return src_value;
+}
+
+
 int
 main(int argc, char *argv[])
 {
@@ -94,32 +133,8 @@ main(int argc, char *argv[])
             const uint16_t dstm = dst_mode(word);
             const uint16_t dstr = dst_register(word);
 
-            uint16_t src_value = 0x0;
+            uint16_t src_value = readSourceValue2Op(memory, registers, word);
 
-            // Read out the value to move to the destination.
-            switch(srcm)
-              {
-              case IMMED:
-                {
-                  src_value = registers[srcr - 1];
-                  break;
-                }
-              case MODE1:
-                {
-                  src_value = memory[registers[srcr - 1]];
-                  break;
-                }
-              case MODE2:
-                {
-                  // Mode 2 means autoincrement. The VM uses the value of the
-                  // register that was given as an address and uses that value.
-                  // The value of the register however, is incremented
-                  // afterwards!
-                  src_value = memory[registers[srcr - 1]];
-                  registers[srcr - 1] = registers[srcr - 1] + 1;
-                  break;
-                }
-              }
             // Determine the address to move to.
             switch(dstm)
               {
@@ -151,28 +166,8 @@ main(int argc, char *argv[])
             const uint16_t dstm = dst_mode(word);
             const uint16_t dstr = dst_register(word);
 
-            uint16_t src_value = 0x0;
+            uint16_t src_value = readSourceValue2Op(memory, registers, word);
 
-            // Read out the value to add to the destination.
-            switch(srcm)
-              {
-              case IMMED:
-                {
-                  src_value = registers[srcr - 1];
-                  break;
-                }
-              case MODE1:
-                {
-                  src_value = memory[registers[srcr - 1]];
-                  break;
-                }
-              case MODE2:
-                {
-                  src_value = memory[registers[srcr - 1]];
-                  registers[srcr - 1] = registers[srcr - 1] + 1;
-                  break;
-                }
-              }
             // Determine the address to move to.
             switch(dstm)
               {
@@ -204,28 +199,7 @@ main(int argc, char *argv[])
             const uint16_t dstm = dst_mode(word);
             const uint16_t dstr = dst_register(word);
 
-            uint16_t src_value = 0x0;
-
-            // Read out the value to add to the destination.
-            switch(srcm)
-              {
-              case IMMED:
-                {
-                  src_value = registers[srcr - 1];
-                  break;
-                }
-              case MODE1:
-                {
-                  src_value = memory[registers[srcr - 1]];
-                  break;
-                }
-              case MODE2:
-                {
-                  src_value = memory[registers[srcr - 1]];
-                  registers[srcr - 1] = registers[srcr - 1] + 1;
-                  break;
-                }
-              }
+            uint16_t src_value = readSourceValue2Op(memory, registers, word);
 
             // Determine the address to move to.
             switch(dstm)
@@ -259,29 +233,8 @@ main(int argc, char *argv[])
             const uint16_t dstm = dst_mode(word);
             const uint16_t dstr = dst_register(word);
 
-            uint16_t src_value = 0x0;
             uint16_t dst_value = 0x0;
-
-            // Read out the value to add to the destination.
-            switch(srcm)
-              {
-              case IMMED:
-                {
-                  src_value = registers[srcr - 1];
-                  break;
-                }
-              case MODE1:
-                {
-                  src_value = memory[registers[srcr - 1]];
-                  break;
-                }
-              case MODE2:
-                {
-                  src_value = memory[registers[srcr - 1]];
-                  registers[srcr - 1] = registers[srcr - 1] + 1;
-                  break;
-                }
-              }
+            uint16_t src_value = readSourceValue2Op(memory, registers, word);
 
             switch(dstm)
               {
