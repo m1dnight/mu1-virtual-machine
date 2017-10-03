@@ -26,78 +26,57 @@ main(int argc, char *argv[])
   /* SETUP  */
   /**********/
 
-  //Read in the filename of the binary.
+  // Read in the binary file and store it in an appropriately sized buffer.
   char *filename = argv[1];
-
-  //Open the file.
-  FILE * ptr;
-  ptr = fopen(filename, "rb");
-
-  //Determine file size and allocate buffer.
-  int size = file_size(ptr) / sizeof(uint16_t); // size is in bytes!
-
+  FILE * ptr     = fopen(filename, "rb");
+  int size       = file_size(ptr) / sizeof(uint16_t); // size is in bytes!
   uint16_t buffer[size];
 
-  // Init with zero.
   for(int i = 0; i < size; i++)
     {
       buffer[i] = 0;
     }
 
-  // Read in the contents of the file in the buffer.
   fread(buffer, sizeof(uint16_t), size, ptr);
 
-  // The binary files are big endian, convert all the values to little.
+  // The assembler generates big endian values. C requires us to use little
+  // endian integers so we convert all the entries in the program.
   for(int i = 0; i < size; i++)
-    {
       buffer[i] = toLE(buffer[i]);
-    }
 
-  //Setup the machine memory.
+  // We generate a sufficiently large enough chunk of memory.
+  // A single word in the VM is 16 bits, so one word can be stored in a uint16_t.
   uint16_t  *memory = malloc(sizeof(uint16_t) * MEMSIZE);
-  for (int i = 0; i < MEMSIZE; i++) {
+  for (int i = 0; i < MEMSIZE; i++)
     memory[i] = 0;
-  }
 
-  //Copy the program into memory.
-  for (int i = 0; i < size; i++) {
+  // Finally we copy the program into memory. The program starts at the from of
+  // the chunk of memory.
+  for (int i = 0; i < size; i++)
     memory[i] = buffer[i];
-  }
 
   /*********/
   /* START */
   /*********/
 
-  // R1 R2, R3, R4, PC
+  // MU1 has five registers. R1 to R4 and PC being the fifth.
+  // Additionally we also have four conditional flags. These are only four bits
+  // so we store them in a uint8, which is the smallest we can use.
   uint16_t registers[5] = {0x0, 0x0, 0x0, 0x0, 0x0};
   uint8_t  flags        = 0x0;
 
-
+  // The stop flag is put to 1 if we encounted the STOP instruction. Otherwise
+  // the VM keeps incrementing the program counter and evaluating
+  // instructions found at that memory address.
   int stop = 0;
-
   while(stop != 1)
     {
-      //getchar( );
-      printf("--------------------------------------\n");
       const uint16_t word = memory[registers[4]];
-      printf("Current word: %" PRIu16 "\n", word);
-
       const uint16_t oper = operation(word);
-      printf(" - operation: %" PRIu16 "\n", oper);
-
       const uint16_t srcm = src_mode(word);
-      printf(" - src_mode : %" PRIu16 "\n", srcm);
-
       const uint16_t srcr = src_register(word);
-      printf(" - src_reg  : %" PRIu16 "\n", srcr);
-
       const uint16_t dstm = dst_mode(word);
-      printf(" - dst_mode : %" PRIu16 "\n", dstm);
-
       const uint16_t dstr = dst_register(word);
-      printf(" - dst_reg  : %" PRIu16 "\n", dstr);
-
-      printRegisters(registers);
 
       // Increment program counter. In the theoretical model the PC goes forward
       // in steps of 2. We have one word per line, so we increment by 1. The
@@ -110,7 +89,6 @@ main(int argc, char *argv[])
           // MOV
         case 0x0:
           {
-            printf(" => MOV\n");
             const uint16_t srcm = src_mode(word);
             const uint16_t srcr = src_register(word);
             const uint16_t dstm = dst_mode(word);
@@ -168,7 +146,6 @@ main(int argc, char *argv[])
           // ADD src dst
         case 0x1:
           {
-            printf(" => ADD\n");
             const uint16_t srcm = src_mode(word);
             const uint16_t srcr = src_register(word);
             const uint16_t dstm = dst_mode(word);
@@ -222,7 +199,6 @@ main(int argc, char *argv[])
           // SUB src dst
         case 0x2:
           {
-            printf(" => SUB\n");
             const uint16_t srcm = src_mode(word);
             const uint16_t srcr = src_register(word);
             const uint16_t dstm = dst_mode(word);
@@ -256,7 +232,6 @@ main(int argc, char *argv[])
               {
               case IMMED:
                 {
-                  printf("Destination value: %" PRIu16 "\n", registers[dstr-1]);
                   registers[dstr - 1] = registers[dstr-1] - src_value;
                   break;
                 }
@@ -279,7 +254,6 @@ main(int argc, char *argv[])
           // CMP src dst
         case 0x3:
           {
-            printf(" => CMP\n");
             const uint16_t srcm = src_mode(word);
             const uint16_t srcr = src_register(word);
             const uint16_t dstm = dst_mode(word);
@@ -330,7 +304,6 @@ main(int argc, char *argv[])
               }
 
             uint16_t diff = src_value - dst_value;
-            printf("CMP %" PRIu16 " - %" PRIu16 " = %" PRIu16 "\n", src_value, dst_value, diff);
             if(diff == 0)
               {
                 flags = set_c_bit(flags);
@@ -341,32 +314,22 @@ main(int argc, char *argv[])
           // Note: The offset is an 8 bit 2c number!!
         case 0x4:
         {
-          printf(" => BEQ\n");
           // Op contains the offset in 2C but in 16 bits.
           uint16_t op16 = single_op(word);
           uint8_t  op8  = (uint8_t) op16;
           int8_t   op8s = op8;
           int8_t   offset = op8s / 2 - 1; // -1 for the PC pointing to the next line already.
           uint16_t target = registers[4] + offset;
-          printf("The offset is %" PRId8 "\n", offset);
-          printf("Current PC: %" PRIu16 "\n", registers[4]);
-          printf("Jumping to: %" PRIu16 "\n", target);
 
           if(get_c_bit(flags) == 1)
           {
-            printf("Jumping back to %" PRIu16 " (%" PRIu16 " + %" PRId8 ")\n", target, registers[4], offset);
             registers[4] = target;
-          }
-          else
-          {
-            printf("Comparison bit was not set. Not jumping.");
           }
           break;
         }
           // HALT
         case 0x5:
           {
-            printf(" => HALT\n");
             stop = 1;
             break;
           }
@@ -374,32 +337,21 @@ main(int argc, char *argv[])
           // Note: The offset is an 8 bit 2c number!!
         case 0x6:
           {
-            printf(" => BNE\n");
             // Op contains the offset in 2C but in 16 bits.
             uint16_t op16 = single_op(word);
             uint8_t  op8  = (uint8_t) op16;
             int8_t   op8s = op8;
             int8_t   offset = op8s / 2 - 1; // -1 for the PC pointing to the next line already.
             uint16_t target = registers[4] + offset;
-            printf("The offset is %" PRId8 "\n", offset);
-            printf("Current PC: %" PRIu16 "\n", registers[4]);
-            printf("Jumping to: %" PRIu16 "\n", target);
 
             if(get_c_bit(flags) != 1)
             {
-              printf("Jumping back to %" PRIu16 " (%" PRIu16 " + %" PRId8 ")\n", target, registers[4], offset);
               registers[4] = target;
-            }
-            else
-            {
-              printf("Comparison bit was not set. Not jumping.");
             }
             break;
           }
         default:
           {
-
-            fprintf(stderr, "Invalid instruction: %" PRIu16 "\n", oper);
             exit(0);
             break;
           }
