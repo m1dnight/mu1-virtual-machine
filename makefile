@@ -10,8 +10,8 @@ default: mu1vm
 .c.o:
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-mu1vm: mu1vm.o debug.o  endianness.o memory.o
-	$(CC) $(FLAGS) -o mu1vm mu1vm.o debug.o endianness.o memory.o
+mu1vm: mu1vm.o debug.o  endianness.o memory.o conditionals.o
+	$(CC) $(FLAGS) -o mu1vm mu1vm.o debug.o endianness.o memory.o conditionals.o
 
 
 .PHONY: clean
