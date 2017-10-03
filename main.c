@@ -5,60 +5,40 @@
 
 #define MEMSIZE 128 // 256 words of memory (16 * 256 bits)
 
-// Addressing mode masks.
-#define MODE_SRC  0x0E00
-#define MODE0_SRC 0x0000
-#define MODE1_SRC 0x0200
-#define MODE2_SRC 0x0400
-#define MODE3_SRC 0x0600
 
-#define MODE_DST  0x0038
-#define MODE0_DST 0x0000
-#define MODE1_DST 0x0008
-#define MODE2_DST 0x0010
-#define MODE3_DST 0x0018
+#define MODE_SRC   0x0E00
+#define MODE_DST   0x0038
 
-#define IMMED 0x0
-#define MODE1 0x1
-#define MODE2 0x2
+#define IMMED      0x0
+#define MODE1      0x1
+#define MODE2      0x2
 
+#define R_SRC      0x01C0
+#define R_DST      0x0007
+
+#define SINGLE_OP  0x0FFF
+
+#define OP_MASK    0xF000
+
+#define SET_N_MASK 0x01
+#define SET_Z_MASK 0x02
+#define SET_V_MASK 0x04
+#define SET_C_MASK 0x08
+
+#define set_n_bit(x)    (uint8_t) (x | SET_N_MASK)
+#define set_z_bit(x)    (uint8_t) (x | SET_Z_MASK)
+#define set_v_bit(x)    (uint8_t) (x | SET_V_MASK)
+#define set_c_bit(x)    (uint8_t) (x | SET_C_MASK)
+
+#define get_c_bit(x)    (uint8_t) (x & SET_C_MASK) >> 3
+
+#define operation(x)    (uint16_t) ((x & OP_MASK) >> 12)
 #define src_register(x) (uint16_t) ((x & R_SRC) >> 6)
 #define dst_register(x) (uint16_t) ((x & R_DST))
 #define src_mode(x)     (uint16_t) ((x & MODE_SRC) >> 9)
 #define dst_mode(x)     (uint16_t) ((x & MODE_DST) >> 3)
-
-
-// Register masks.
-#define R_SRC  0x01C0
-#define R1_SRC 0x0040
-#define R2_SRC 0x0080
-#define R3_SRC 0x00C0
-#define R4_SRC 0x0100
-#define PC_SRC 0x0140
-
-// Register masks for destination
-#define R_DST  0x0007
-#define R1_DST 0x0001 
-#define R2_DST 0x0002 
-#define R3_DST 0x0003  
-#define R4_DST 0x0004
-#define PC_DST 0x0005
-
-#define OP_MASK 0xF000
-#define MOV     0x000F
-
-
-#define SET_N_MASK 0x1
-#define SET_Z_MASK 0x2
-#define SET_V_MASK 0x4
-#define SET_C_MASK 0x8
-
-#define set_n_bit(x) (uint8_t) (x | SET_N_MARK)
-#define set_z_bit(x) (uint8_t) (x | SET_Z_MARK)
-#define set_v_bit(x) (uint8_t) (x | SET_V_MARK)
-#define set_c_bit(x) (uint8_t) (x | SET_C_MARK)
-
-#define operation(x) (uint16_t) ((x & OP_MASK) >> 12)
+#define single_op(x)    (uint16_t) ((x & SINGLE_OP))
+#define get_word(x)     memory[x / 2];
 
 
 /*
@@ -74,7 +54,7 @@ file_size(FILE * f)
 }
 
 /*
-  Converts a uint16_t to big endian. 
+  Converts a uint16_t to big endian.
 */
 uint16_t
 toBE(uint16_t v)
@@ -121,55 +101,31 @@ printRegisters(uint16_t *registers)
   printf("R2: %016" PRIu16 "\n", registers[1]);
   printf("R3: %016" PRIu16 "\n", registers[2]);
   printf("R4: %016" PRIu16 "\n", registers[3]);
-  printf("PC: %016" PRIu16 "\n", registers[4]);  
+  printf("PC: %016" PRIu16 "\n", registers[4]);
 }
 
-
-/* 
-   Reads an operand from memory depending on addressing mode and register values.
+/*
+Prints the condition bits.
 */
-uint16_t
-readValue(uint16_t *memory, uint16_t *registers, uint16_t regist, uint16_t mode)
+void
+printConditions(uint8_t flags)
 {
-  switch(mode)
-    {
-      // Immediate mode (use the value from the register).
-    case 0x0:
-      return registers[regist];
-      break;
-      // Deferred mode (use the value of the register as the address in memory).
-    case 0x1:
-      return memory[registers[regist]];
-      break;
-      // Auto-increment: Use the value from the register as an address, and increment the register to the next address.
-    case 0x2:
-      {
-        uint16_t regval    = registers[regist];
-        uint16_t regvalnew = regval + 2;
-        uint16_t operand   = memory[regval];
-        registers[regist] = regvalnew;
-        return operand;
-        break;
-      }
-      
-    default:
-      fprintf(stderr, "Invalid addressing mode!\n");
-      exit(0);
-      break;
-    }
-  
+  printf("CONDITIONS:\n");
+  printf("N: %" PRIu8 "\n", (uint8_t) (flags & SET_N_MASK));
+  printf("Z: %" PRIu8 "\n", (uint8_t) (flags & SET_Z_MASK));
+  printf("V: %" PRIu8 "\n", (uint8_t) (flags & SET_V_MASK));
+  printf("C: %" PRIu8 "\n", (uint8_t) (flags & SET_C_MASK));
+
 }
+
 
 int
 main(int argc, char *argv[])
 {
- 
-  
-  
   /**********/
   /* SETUP  */
   /**********/
-  
+
   //Read in the filename of the binary.
   char *filename = argv[1];
 
@@ -181,7 +137,7 @@ main(int argc, char *argv[])
   int size = file_size(ptr) / sizeof(uint16_t); // size is in bytes!
 
   uint16_t buffer[size];
-  
+
   // Init with zero.
   for(int i = 0; i < size; i++)
     {
@@ -211,43 +167,50 @@ main(int argc, char *argv[])
   /*********/
   /* START */
   /*********/
-  
+
   // R1 R2, R3, R4, PC
   uint16_t registers[5] = {0x0, 0x0, 0x0, 0x0, 0x0};
   uint8_t  flags        = 0x0;
-  
+
 
   int stop = 0;
-  
+
   while(stop != 1)
     {
+      //getchar( );
       printf("--------------------------------------\n");
       const uint16_t word = memory[registers[4]];
       printf("Current word: %" PRIu16 "\n", word);
-      
+
       const uint16_t oper = operation(word);
       printf(" - operation: %" PRIu16 "\n", oper);
-      
+
       const uint16_t srcm = src_mode(word);
       printf(" - src_mode : %" PRIu16 "\n", srcm);
-      
+
       const uint16_t srcr = src_register(word);
       printf(" - src_reg  : %" PRIu16 "\n", srcr);
-      
+
       const uint16_t dstm = dst_mode(word);
       printf(" - dst_mode : %" PRIu16 "\n", dstm);
-      
+
       const uint16_t dstr = dst_register(word);
       printf(" - dst_reg  : %" PRIu16 "\n", dstr);
 
-      // Increment program counter.
+      printRegisters(registers);
+
+      // Increment program counter. In the theoretical model the PC goes forward
+      // in steps of 2. We have one word per line, so we increment by 1. The
+      // below expression also means that every expression is evaluated with the
+      // program counter already pointing to the *next* instruction!
       registers[4] = registers[4] + 1;
-      
+
       switch(oper)
         {
           // MOV
         case 0x0:
           {
+            printf(" => MOV\n");
             const uint16_t srcm = src_mode(word);
             const uint16_t srcr = src_register(word);
             const uint16_t dstm = dst_mode(word);
@@ -270,6 +233,10 @@ main(int argc, char *argv[])
                 }
               case MODE2:
                 {
+                  // Mode 2 means autoincrement. The VM uses the value of the
+                  // register that was given as an address and uses that value.
+                  // The value of the register however, is incremented
+                  // afterwards!
                   src_value = memory[registers[srcr - 1]];
                   registers[srcr - 1] = registers[srcr - 1] + 1;
                   break;
@@ -295,14 +262,13 @@ main(int argc, char *argv[])
                   break;
                 }
               }
-            stop -= 1;
-
             break;
           }
 
           // ADD src dst
         case 0x1:
           {
+            printf(" => ADD\n");
             const uint16_t srcm = src_mode(word);
             const uint16_t srcr = src_register(word);
             const uint16_t dstm = dst_mode(word);
@@ -350,14 +316,13 @@ main(int argc, char *argv[])
                   break;
                 }
               }
-            stop -= 1;
-
-            break;            
+            break;
           }
 
           // SUB src dst
         case 0x2:
           {
+            printf(" => SUB\n");
             const uint16_t srcm = src_mode(word);
             const uint16_t srcr = src_register(word);
             const uint16_t dstm = dst_mode(word);
@@ -408,16 +373,13 @@ main(int argc, char *argv[])
                 }
               }
 
-            // Set the bits.
-            
-            stop -= 1;
-
-            break;            
+            break;
           }
 
           // CMP src dst
         case 0x3:
           {
+            printf(" => CMP\n");
             const uint16_t srcm = src_mode(word);
             const uint16_t srcr = src_register(word);
             const uint16_t dstm = dst_mode(word);
@@ -465,22 +427,74 @@ main(int argc, char *argv[])
                   registers[dstr - 1] = registers[dstr - 1] + 1;
                   break;
                 }
-              }            
-            
-            stop -= 1;
+              }
 
-            break;            
+            uint16_t diff = src_value - dst_value;
+            printf("CMP %" PRIu16 " - %" PRIu16 " = %" PRIu16 "\n", src_value, dst_value, diff);
+            if(diff == 0)
+              {
+                flags = set_c_bit(flags);
+              }
+            break;
           }
+          // BEQ offset
+          // Note: The offset is an 8 bit 2c number!!
+        case 0x4:
+          {
+            printf(" => BEQ\n");
+            // Op contains the offset in 2C but in 16 bits.
+            uint16_t op16 = single_op(word);
+            uint8_t  op8  = (uint8_t) op16;
+            int8_t   op8s = op8;
+            int8_t   offset = op8s / 2;
 
+            if(get_c_bit(flags) == 1)
+            {
+              printf("Jumping back to %c (%" PRIu16 " - %" PRId8 ")\n", registers[4] + offset, registers[4], offset);
+              registers[4] = registers[4] + offset;
+            }
+            else
+            {
+              printf("Comparison bit was not set. Not jumping.");
+            }
+            break;
+          }
           // HALT
         case 0x5:
           {
+            printf(" => HALT\n");
             stop = 1;
-            break;            
-          }          
+            break;
+          }
+          // BNE offset
+          // Note: The offset is an 8 bit 2c number!!
+        case 0x6:
+          {
+            printf(" => BNE\n");
+            // Op contains the offset in 2C but in 16 bits.
+            uint16_t op16 = single_op(word);
+            uint8_t  op8  = (uint8_t) op16;
+            int8_t   op8s = op8;
+            int8_t   offset = op8s / 2 - 1; // -1 for the PC pointing to the next line already.
+            uint16_t target = registers[4] + offset;
+            printf("The offset is %" PRId8 "\n", offset);
+            printf("Current PC: %" PRIu16 "\n", registers[4]);
+            printf("Jumping to: %" PRIu16 "\n", target);
+
+            if(get_c_bit(flags) != 1)
+            {
+              printf("Jumping back to %" PRIu16 " (%" PRIu16 " + %" PRId8 ")\n", target, registers[4], offset);
+              registers[4] = target;
+            }
+            else
+            {
+              printf("Comparison bit was not set. Not jumping.");
+            }
+            break;
+          }
         default:
           {
-        
+
             fprintf(stderr, "Invalid instruction: %" PRIu16 "\n", oper);
             exit(0);
             break;
@@ -489,9 +503,6 @@ main(int argc, char *argv[])
     }
   printMemory(memory);
   printRegisters(registers);
+  printConditions(flags);
   return 0;
 }
-
-
-
-  
