@@ -440,25 +440,29 @@ main(int argc, char *argv[])
           // BEQ offset
           // Note: The offset is an 8 bit 2c number!!
         case 0x4:
-          {
-            printf(" => BEQ\n");
-            // Op contains the offset in 2C but in 16 bits.
-            uint16_t op16 = single_op(word);
-            uint8_t  op8  = (uint8_t) op16;
-            int8_t   op8s = op8;
-            int8_t   offset = op8s / 2;
+        {
+          printf(" => BEQ\n");
+          // Op contains the offset in 2C but in 16 bits.
+          uint16_t op16 = single_op(word);
+          uint8_t  op8  = (uint8_t) op16;
+          int8_t   op8s = op8;
+          int8_t   offset = op8s / 2 - 1; // -1 for the PC pointing to the next line already.
+          uint16_t target = registers[4] + offset;
+          printf("The offset is %" PRId8 "\n", offset);
+          printf("Current PC: %" PRIu16 "\n", registers[4]);
+          printf("Jumping to: %" PRIu16 "\n", target);
 
-            if(get_c_bit(flags) == 1)
-            {
-              printf("Jumping back to %c (%" PRIu16 " - %" PRId8 ")\n", registers[4] + offset, registers[4], offset);
-              registers[4] = registers[4] + offset;
-            }
-            else
-            {
-              printf("Comparison bit was not set. Not jumping.");
-            }
-            break;
+          if(get_c_bit(flags) == 1)
+          {
+            printf("Jumping back to %" PRIu16 " (%" PRIu16 " + %" PRId8 ")\n", target, registers[4], offset);
+            registers[4] = target;
           }
+          else
+          {
+            printf("Comparison bit was not set. Not jumping.");
+          }
+          break;
+        }
           // HALT
         case 0x5:
           {
