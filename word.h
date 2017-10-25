@@ -48,3 +48,4 @@
 #define BEQ  0x4
 #define HALT 0x5
 #define BNE  0x6
+#define JMP  0x7

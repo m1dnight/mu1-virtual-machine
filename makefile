@@ -18,4 +18,7 @@ mu1vm: mu1vm.o  endianness.o memory.o conditionals.o registers.o
 
 clean:
 	-rm -f *.o
+
+cleanall:
+	-rm -f *.o
 	-rm -f mu1vm

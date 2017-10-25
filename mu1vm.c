@@ -148,6 +148,16 @@ main(int argc, char *argv[])
             }
             break;
           }
+        case JMP:
+        {
+          // Op contains the offset in 2C but in 16 bits.
+          int8_t   offset = ((int8_t) single_op_operand(word)) / 2 - 1; // -1 for the PC pointing to the next line already.
+          uint16_t target = registers[4] + offset;
+
+          registers[4] = target;
+
+          break;
+        }
         default:
           {
             exit(0);
